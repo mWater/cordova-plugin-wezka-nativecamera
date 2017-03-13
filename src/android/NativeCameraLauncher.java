@@ -56,8 +56,11 @@ import android.media.ThumbnailUtils;
 import android.media.MediaScannerConnection;
 import android.media.MediaScannerConnection.MediaScannerConnectionClient;
 import android.os.Bundle;
+import android.support.annotation.Nullable;
 import android.util.Base64;
 import android.util.Log;
+
+import static android.R.attr.bitmap;
 
 /**
  * This class launches the camera view, allows the user to take a picture,
@@ -152,15 +155,28 @@ public class NativeCameraLauncher extends CordovaPlugin {
 
 				// Read in bitmap of captured image
 				Bitmap bitmap;
-				try {
-					bitmap = android.provider.MediaStore.Images.Media
-							.getBitmap(this.cordova.getActivity().getContentResolver(), imageUri);
-				} catch (FileNotFoundException e) {
+
+				bitmap = scaleBitmap(imageUri);
+
+				if (bitmap == null) {
 					Uri uri = intent.getData();
 					android.content.ContentResolver resolver = this.cordova.getActivity().getContentResolver();
 					bitmap = android.graphics.BitmapFactory
 							.decodeStream(resolver.openInputStream(uri));
 				}
+
+//				try {
+//                    BitmapFactory.Options options = new BitmapFactory.Options();
+//                    options.inSampleSize = 8;
+//                    bitmap = BitmapFactory.decodeStream(this.cordova.getActivity().getContentResolver().openInputStream(imageUri), null, options);
+//					//bitmap = android.provider.MediaStore.Images.Media
+//							//.getBitmap(this.cordova.getActivity().getContentResolver(), imageUri);
+//				} catch (FileNotFoundException e) {
+//					Uri uri = intent.getData();
+//					android.content.ContentResolver resolver = this.cordova.getActivity().getContentResolver();
+//					bitmap = android.graphics.BitmapFactory
+//							.decodeStream(resolver.openInputStream(uri));
+//				}
 
 				// If bitmap cannot be decoded, this may return null
 				if (bitmap == null) {
@@ -172,9 +188,9 @@ public class NativeCameraLauncher extends CordovaPlugin {
 				// Log.i(LOG_TAG, "getAllocationByteCount: " + bitmap.getAllocationByteCount());
 				// Log.i(LOG_TAG, "getByteCount: " + bitmap.getByteCount());
 
-				bitmap = scaleBitmap(bitmap);
+//				bitmap = scaleBitmap(bitmap);
 				//Immediately clear the memory associated with previous bitmap
-				System.gc();
+//				System.gc();
 
 				// Log.i(LOG_TAG, "*Memory after scaling: *");
 				// Log.i(LOG_TAG, "getAllocationByteCount: " + bitmap.getAllocationByteCount());
@@ -237,6 +253,67 @@ public class NativeCameraLauncher extends CordovaPlugin {
 		else {
 			this.failPicture("Did not complete!");
 		}
+	}
+
+	@Nullable
+	private Bitmap scaleBitmap(Uri imageUri) {
+
+        try {
+			BitmapFactory.Options options = new BitmapFactory.Options();
+			options.inJustDecodeBounds = true;
+
+			BitmapFactory.decodeStream(this.cordova.getActivity().getContentResolver().openInputStream(imageUri), null, options);
+
+
+            int targetWidth = this.targetWidth;
+            int targetHeight = this.targetHeight;
+            int origWidth = options.outWidth;
+            int origHeight = options.outHeight;
+
+            // If no new width or height were specified return the original bitmap
+            if (targetWidth <= 0 && targetHeight <= 0) {
+                options.inSampleSize = 1;
+            } else {
+                // Only the width was specified
+                if (targetWidth > 0 && targetHeight <= 0) {
+                    targetHeight = (targetWidth * origHeight) / origWidth;
+                }
+                // only the height was specified
+                else if (targetWidth <= 0 && targetHeight > 0) {
+                    targetWidth = (targetHeight * origWidth) / origHeight;
+                }
+
+                options.inSampleSize = calculateInSampleSize(options, targetWidth, targetHeight);
+            }
+
+			options.inJustDecodeBounds = false;
+			return BitmapFactory.decodeStream(this.cordova.getActivity().getContentResolver().openInputStream(imageUri), null, options);
+		} catch (FileNotFoundException e) {
+			return null;
+		}
+	}
+
+	private static int calculateInSampleSize(
+			BitmapFactory.Options options, int reqWidth, int reqHeight) {
+		// Raw height and width of image
+		final int height = options.outHeight;
+		final int width = options.outWidth;
+		int inSampleSize = 1;
+
+		if (height > reqHeight || width > reqWidth) {
+
+			final int halfHeight = height / 2;
+			final int halfWidth = width / 2;
+
+			// Calculate the largest inSampleSize value that is a power of 2 and keeps both
+			// height and width larger than the requested height and width.
+			while ((halfHeight / inSampleSize) >= reqHeight
+					&& (halfWidth / inSampleSize) >= reqWidth) {
+				inSampleSize *= 2;
+			}
+		}
+
+		return inSampleSize;
 	}
 
 	public Bitmap scaleBitmap(Bitmap bitmap) {
