@@ -1,0 +1,20 @@
+{
+  "name": "cordova-plugin-wezka-nativecamera",
+  "version": "1.0.0",
+  "description": "com.wezka.nativecamera ==========================",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/broncha/cordova-plugin-wezka-nativecamera.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/broncha/cordova-plugin-wezka-nativecamera/issues"
+  },
+  "cordova": {
+    "platforms": [
+      "android"
+    ]
+  },
+  "homepage": "https://github.com/broncha/cordova-plugin-wezka-nativecamera#readme"
+}
