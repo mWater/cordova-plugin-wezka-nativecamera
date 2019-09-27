@@ -53,7 +53,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-
 public class CameraActivity extends Activity implements SensorEventListener {
 
     private static final String TAG = "CameraActivity";
@@ -223,15 +222,15 @@ public class CameraActivity extends Activity implements SensorEventListener {
                     }
                     Parameters p = camera.getParameters();
                     if (led == 0) {
-                        p.setFlashMode(Camera.Parameters.FLASH_MODE_AUTO);
+                        p.setFlashMode(Parameters.FLASH_MODE_AUTO);
                         flashButton.setBackgroundResource(imgFlashAuto);
                         led = 1;
                     } else if (led == 1) {
-                        p.setFlashMode(Camera.Parameters.FLASH_MODE_TORCH);
+                        p.setFlashMode(Parameters.FLASH_MODE_TORCH);
                         flashButton.setBackgroundResource(imgFlashOn);
                         led = 2;
                     } else if (led == 2) {
-                        p.setFlashMode(Camera.Parameters.FLASH_MODE_OFF);
+                        p.setFlashMode(Parameters.FLASH_MODE_OFF);
                         flashButton.setBackgroundResource(imgFlashNo);
                         led = 0;
                     }
@@ -266,8 +265,8 @@ public class CameraActivity extends Activity implements SensorEventListener {
 
     private void attemptToTakePicture() {
         Parameters p = camera.getParameters();
-        android.hardware.Camera.CameraInfo info = new android.hardware.Camera.CameraInfo();
-        android.hardware.Camera.getCameraInfo(cam, info);
+        Camera.CameraInfo info = new Camera.CameraInfo();
+        Camera.getCameraInfo(cam, info);
         Log.d(TAG, "Camera rotation detected to be: " + info.orientation);
         int toRotate = info.orientation + degrees - 90;
         Log.d(TAG, "To rotate before checking 0/360 bounds: " + toRotate);
@@ -296,7 +295,7 @@ public class CameraActivity extends Activity implements SensorEventListener {
         } catch (RuntimeException ex) {
             // Auto focus crash. Ignore.
             Toast.makeText(getApplicationContext(),
-                "Error focusing", Toast.LENGTH_SHORT).show();
+                    "Error focusing", Toast.LENGTH_SHORT).show();
             Log.e(TAG, "Auto-focus crash");
         }
     }
@@ -331,14 +330,14 @@ public class CameraActivity extends Activity implements SensorEventListener {
             } catch (RuntimeException ex) {
                 // Camera opening error. Warn user
                 Toast.makeText(getApplicationContext(),
-                    "Unable to use camera", Toast.LENGTH_SHORT).show();
+                        "Unable to use camera", Toast.LENGTH_SHORT).show();
                 Log.e(TAG, "Camera open error: " + ex.getMessage());
             }
         }
 
         // Initialize preview if surface still exists
         if (preview.getHeight() > 0) {
-            initPreview(preview.getHeight());
+            initPreview(preview.getHeight(), preview.getWidth());
             startPreview();
         }
     }
@@ -355,7 +354,7 @@ public class CameraActivity extends Activity implements SensorEventListener {
             camera.release();
         }
         camera = Camera.open(isFront);
-        initPreview(preview.getHeight());
+        initPreview(preview.getHeight(), preview.getWidth());
         startPreview();
     }
 
@@ -372,16 +371,26 @@ public class CameraActivity extends Activity implements SensorEventListener {
         super.onPause();
     }
 
-    private Camera.Size getBestPreviewSize(int height,
-                                           Camera.Parameters parameters) {
+    private Camera.Size getBestPreviewSize(int height, int width,
+                                           Parameters parameters) {
+
+        //The list of camera preview sizes inside sizes is always with w>h (landscape)
+        //When in portrait mode w and h has to be inverted to have a proper comparison
+        if(width < height) {
+            int temp = width;
+            width = height;
+            height = temp;
+        }
 
         final double ASPECT_TOLERANCE = 0.1;
+        double targetRatio = (double) width / height;
         Camera.Size optimalSize = null;
         double minDiff = Double.MAX_VALUE;
         // Try to find an size match aspect ratio and size
+
         for (Camera.Size size : parameters.getSupportedPreviewSizes()) {
             double ratio = (double) size.width / size.height;
-            if (Math.abs(ratio - height) > ASPECT_TOLERANCE) continue;
+            if (Math.abs(ratio - targetRatio) > ASPECT_TOLERANCE) continue;
             if (Math.abs(size.height - height) < minDiff) {
                 optimalSize = size;
                 minDiff = Math.abs(size.height - height);
@@ -400,19 +409,19 @@ public class CameraActivity extends Activity implements SensorEventListener {
         return optimalSize;
     }
 
-    private void initPreview(int height) {
+    private void initPreview(int height, int width) {
         if (camera != null && previewHolder.getSurface() != null) {
             try {
                 camera.setPreviewDisplay(previewHolder);
             }
             catch (Throwable t) {
-                Log.e("PreviewDemo-surfaceCallback",
+                Log.e("PreviewDemo",
                         "Exception in setPreviewDisplay()", t);
             }
 
             if (!cameraConfigured) {
-                Camera.Parameters parameters = camera.getParameters();
-                Camera.Size size = getBestPreviewSize(height, parameters);
+                Parameters parameters = camera.getParameters();
+                Camera.Size size = getBestPreviewSize(height, width, parameters);
                 Camera.Size pictureSize = getSmallestPictureSize(parameters);
                 if (size != null && pictureSize != null) {
                     parameters.setPreviewSize(size.width, size.height);
@@ -421,20 +430,20 @@ public class CameraActivity extends Activity implements SensorEventListener {
                     parameters.setPictureFormat(ImageFormat.JPEG);
                     // For Android 2.3.4 quirk
                     if (parameters.getSupportedFocusModes() != null) {
-                        if (parameters.getSupportedFocusModes().contains(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE)) {
-                            parameters.setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE);
-                        } else if (parameters.getSupportedFocusModes().contains(android.hardware.Camera.Parameters.FOCUS_MODE_AUTO)) {
-                            parameters.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
+                        if (parameters.getSupportedFocusModes().contains(Parameters.FOCUS_MODE_CONTINUOUS_PICTURE)) {
+                            parameters.setFocusMode(Parameters.FOCUS_MODE_CONTINUOUS_PICTURE);
+                        } else if (parameters.getSupportedFocusModes().contains(Parameters.FOCUS_MODE_AUTO)) {
+                            parameters.setFocusMode(Parameters.FOCUS_MODE_AUTO);
                         }
                     }
                     if (parameters.getSupportedSceneModes() != null) {
-                        if (parameters.getSupportedSceneModes().contains(Camera.Parameters.SCENE_MODE_AUTO)) {
-                            parameters.setSceneMode(Camera.Parameters.SCENE_MODE_AUTO);
+                        if (parameters.getSupportedSceneModes().contains(Parameters.SCENE_MODE_AUTO)) {
+                            parameters.setSceneMode(Parameters.SCENE_MODE_AUTO);
                         }
                     }
                     if (parameters.getSupportedWhiteBalance() != null) {
-                        if (parameters.getSupportedWhiteBalance().contains(Camera.Parameters.WHITE_BALANCE_AUTO)) {
-                            parameters.setWhiteBalance(Camera.Parameters.WHITE_BALANCE_AUTO);
+                        if (parameters.getSupportedWhiteBalance().contains(Parameters.WHITE_BALANCE_AUTO)) {
+                            parameters.setWhiteBalance(Parameters.WHITE_BALANCE_AUTO);
                         }
                     }
                     cameraConfigured=true;
@@ -444,7 +453,7 @@ public class CameraActivity extends Activity implements SensorEventListener {
         }
     }
 
-    private Camera.Size getSmallestPictureSize(Camera.Parameters parameters) {
+    private Camera.Size getSmallestPictureSize(Parameters parameters) {
         Camera.Size result=null;
         for (Camera.Size size : parameters.getSupportedPictureSizes()) {
             if (result == null) {
@@ -479,7 +488,7 @@ public class CameraActivity extends Activity implements SensorEventListener {
             if (camera != null) {
                 camera.setDisplayOrientation(90);
             }
-            initPreview(preview.getHeight());
+            initPreview(preview.getHeight(), preview.getWidth());
             startPreview();
         }
 
